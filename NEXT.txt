@@ -1,0 +1,4 @@
+Refactor Code
+Question about Ls & Lb ---> Unit Management
+List of Net Area
+Inches into Nominal Size (Input or Smart calc from book)
