@@ -1,7 +1,7 @@
 from utils import *
 from bisect import bisect_right
 
-def get_initial_values():
+def get_concrete_weight():
 	# User input
 	unit_weight_of_concrete = float(input("Please enter unit weight of concrete: "))
 	thickness_of_slab = float(input("Please enter thickness of slab: "))
@@ -32,7 +32,7 @@ def get_initial_values():
 	print(f"Final Concrete Weight plus Live Load: {concrete_weight_plus_live_load}\n")
 	return concrete_weight_plus_live_load
 
-def get_ply_info():
+def get_sheathing_info():
 	plywood_or_plyform = input("Please choose between Plywood (1) and Plyform (2): ")
 	while plywood_or_plyform not in ["1", "2"]:
 		plywood_or_plyform = input("Invalid option! Please choose between Plywood (1) and Plyform (2): ")
@@ -56,7 +56,7 @@ def get_ply_info():
 	print()
 	return is_plywood, ply_class, is_face_grain_across
 
-def get_plyform_thickness(is_plywood, ply_class, is_face_grain_across):
+def get_sheathing_thickness(is_plywood, ply_class, is_face_grain_across):
 	if not is_plywood:
 		input_plyform_thickness = float(input("Please enter plyform thickness: "))
 		while input_plyform_thickness not in plyform_thickness:
@@ -124,7 +124,7 @@ def get_plyform_thickness(is_plywood, ply_class, is_face_grain_across):
 
 	return final_values, final_parameter
 
-def get_sheathing_thickness(final_values, final_parameter, concrete_weight_plus_live_load, is_plywood):
+def get_sheathing_distance(final_values, final_parameter, concrete_weight_plus_live_load, is_plywood):
     no_of_spans = input("Please enter number of spans (1-3): ")
     while no_of_spans not in ["1", "2", "3"]:
         no_of_spans = input("Invalid option! Please enter number of spans (1-3): ")
@@ -178,7 +178,7 @@ def get_sheathing_thickness(final_values, final_parameter, concrete_weight_plus_
 
     return no_of_spans, design_span, final_distance_between_sheathing, final_parameter_i, final_parameter_se
 
-def get_size_inputs():
+def get_characteristics():
 	input_nominal_size = input("Please enter nominal size: ")
 	while input_nominal_size not in inch_options:
 		input_nominal_size = input(f"Invalid option! Only {inch_options} are allowed. Please enter nominal size: ")
@@ -202,10 +202,10 @@ def get_size_inputs():
 	return input_nominal_size, inch_thickness
 
 def calculate_joist_values(final_values, final_parameter_se, concrete_weight_plus_live_load, no_of_spans, inch_thickness, input_nominal_size):
-    fb_index = 1 if inch_thickness == '4' else 1 # ALWAYS 1 CHECK THIS
+    fb_index = 1 if inch_thickness == '4' else 0
     inches = int(input_nominal_size.split("x")[0])
     fb_factor = adjustments_factor[inches][fb_index]
-    fc_factor = adjustments_factor[inches][2]
+    fc_factor = adjustments_factor[inches][2] # CHECK THIS IF NEEDED
     cd = 0.9
     new_fb = fb_factor * cd * final_values["Fb"]
 
@@ -240,8 +240,8 @@ def calculate_deflections(final_values, final_parameter_i, concrete_weight_plus_
 def calculate_shores_values(final_values, final_parameter_i, final_parameter_se, big_w, design_span, input_nominal_size, new_fb):
     shores_lb = ((120 * new_fb * final_parameter_se) / big_w) ** 0.5
 
-    breadth = float(inch_to_metric[input_nominal_size].split("*")[0])
-    depth = float(inch_to_metric[input_nominal_size].split("*")[0]) ## CHECK THIS BOTH ARE SAME
+    breadth, depth= map(float, inch_to_metric[input_nominal_size].split("*"))
+
     shores_ls = ((192 * final_values["Fs"] * breadth * depth) / (15 * big_w)) + (2 * depth)
 
     deflection_i_input = design_span / 360
@@ -255,15 +255,15 @@ def calculate_shores_values(final_values, final_parameter_i, final_parameter_se,
     return shores_lb, shores_ls, final_deflection_i, final_deflection_ii
 
 def main():
-	concrete_weight_plus_live_load = get_initial_values()
+	concrete_weight_plus_live_load = get_concrete_weight()
 	
-	is_plywood, ply_class, is_face_grain_across = get_ply_info()
+	is_plywood, ply_class, is_face_grain_across = get_sheathing_info()
 
-	final_values, final_parameter = get_plyform_thickness(is_plywood, ply_class, is_face_grain_across)
+	final_values, final_parameter = get_sheathing_thickness(is_plywood, ply_class, is_face_grain_across)
 	
-	no_of_spans, design_span, final_distance_between_sheathing, final_parameter_i, final_parameter_se = get_sheathing_thickness(final_values, final_parameter, concrete_weight_plus_live_load, is_plywood)
+	no_of_spans, design_span, final_distance_between_sheathing, final_parameter_i, final_parameter_se = get_sheathing_distance(final_values, final_parameter, concrete_weight_plus_live_load, is_plywood)
 	
-	input_nominal_size, inch_thickness = get_size_inputs()
+	input_nominal_size, inch_thickness = get_characteristics()
 
 	joist_lb, joist_ls, new_fb = calculate_joist_values(final_values, final_parameter_i, concrete_weight_plus_live_load, no_of_spans, inch_thickness, input_nominal_size)	
 	final_deflection_1, final_deflection_2 = calculate_deflections(final_values, final_parameter_i, concrete_weight_plus_live_load, design_span, no_of_spans)
