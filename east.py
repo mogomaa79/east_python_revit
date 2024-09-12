@@ -241,7 +241,7 @@ def calculate_shores_values(final_values, final_parameter_i, final_parameter_se,
     shores_lb = ((120 * new_fb * final_parameter_se) / big_w) ** 0.5
 
     breadth = float(inch_to_metric[input_nominal_size].split("*")[0])
-    depth = float(inch_to_metric[input_nominal_size].split("*")[0])
+    depth = float(inch_to_metric[input_nominal_size].split("*")[0]) ## CHECK THIS BOTH ARE SAME
     shores_ls = ((192 * final_values["Fs"] * breadth * depth) / (15 * big_w)) + (2 * depth)
 
     deflection_i_input = design_span / 360
@@ -256,12 +256,16 @@ def calculate_shores_values(final_values, final_parameter_i, final_parameter_se,
 
 def main():
 	concrete_weight_plus_live_load = get_initial_values()
+	
 	is_plywood, ply_class, is_face_grain_across = get_ply_info()
-	final_values, final_parameter = get_plyform_thickness(is_plywood, ply_class, is_face_grain_across)
-	no_of_spans, design_span, final_distance_between_sheathing, final_parameter_i, final_parameter_se = get_sheathing_thickness(final_values, final_parameter, concrete_weight_plus_live_load, is_plywood)
-	input_nominal_size, inch_thickness = get_size_inputs()
-	joist_lb, joist_ls, new_fb = calculate_joist_values(final_values, final_parameter_i, concrete_weight_plus_live_load, no_of_spans, inch_thickness, input_nominal_size)	
 
+	final_values, final_parameter = get_plyform_thickness(is_plywood, ply_class, is_face_grain_across)
+	
+	no_of_spans, design_span, final_distance_between_sheathing, final_parameter_i, final_parameter_se = get_sheathing_thickness(final_values, final_parameter, concrete_weight_plus_live_load, is_plywood)
+	
+	input_nominal_size, inch_thickness = get_size_inputs()
+
+	joist_lb, joist_ls, new_fb = calculate_joist_values(final_values, final_parameter_i, concrete_weight_plus_live_load, no_of_spans, inch_thickness, input_nominal_size)	
 	final_deflection_1, final_deflection_2 = calculate_deflections(final_values, final_parameter_i, concrete_weight_plus_live_load, design_span, no_of_spans)
 	final_distance_between_joist = min(joist_lb, joist_ls, final_deflection_1, final_deflection_2)
 
