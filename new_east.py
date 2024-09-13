@@ -117,7 +117,7 @@ def get_sheathing_thickness(is_plywood, ply_class, is_face_grain_across):
     print(f"Final Sheathing Weight: {final_sheathing_weight}")
     print(f"Final Parameters: {final_parameter}\n")
 
-    final_values = {}
+    shores_values = {}
     
     # Additional input required if plywood is selected
     if is_plywood:
@@ -143,22 +143,22 @@ def get_sheathing_thickness(is_plywood, ply_class, is_face_grain_across):
         # Assign final stress values
         for k, v in final_stress.items():
             if stress_group in v:
-                final_values[k] = v[stress_group][index]
+                shores_values[k] = v[stress_group][index]
         
-        final_values["Fs"] = rolling_shear_table[ply_class][index]
+        shores_values["Fs"] = rolling_shear_table[ply_class][index]
 
     # If Plyform is selected, assign stress values based on the class
     else:
-        final_values = plyform_stress[ply_class]
+        shores_values = plyform_stress[ply_class]
 
     # Output final values and return them
     print("Final Values:")
-    for k, v in final_values.items():
+    for k, v in shores_values.items():
         print(f"{k}: {v}")
 
-    return final_values, final_parameter, final_sheathing_weight
+    return shores_values, final_parameter, final_sheathing_weight
 
-def get_sheathing_distance(final_values, final_parameter, concrete_weight_plus_live_load, is_plywood):
+def get_sheathing_distance(shores_values, final_parameter, concrete_weight_plus_live_load, is_plywood):
     """
     Function to calculate the optimal sheathing distance based on input parameters like 
     bending stress, shear stress, elasticity, concrete weight, and live load.
@@ -172,9 +172,9 @@ def get_sheathing_distance(final_values, final_parameter, concrete_weight_plus_l
     no_of_spans = int(no_of_spans)
 
     # Bending stress (Fb), shear stress (Fs), and modulus of elasticity (E)
-    fb = final_values["Fb"]
-    fs = final_values["Fs"]
-    E = final_values["E"]
+    fb = shores_values["Fb"]
+    fs = shores_values["Fs"]
+    E = shores_values["E"]
 
     print(f"fb: {fb:.2f}")
     
@@ -260,10 +260,10 @@ def get_characteristics():
     s = big_table[input_nominal_size]["S" + direction]
 
     species_nominal = species_nominal_mapper[species_nominal]
-    final_values = species_and_nominal_table[species_nominal + species_grade]
-    print(f"Grade: {final_values}")
+    shores_values = species_and_nominal_table[species_nominal + species_grade]
+    print(f"Grade: {shores_values}")
 
-    return input_nominal_size, i, s, final_values
+    return input_nominal_size, i, s, shores_values
 
 def calculate_joist_values(joist_s, joist_values, rolling_shear, weight_on_joists, no_of_spans, input_nominal_size):
     """
@@ -293,7 +293,7 @@ def calculate_joist_values(joist_s, joist_values, rolling_shear, weight_on_joist
         breadth, depth = map(float, inch_to_metric[input_nominal_size].split("*"))
         joist_ls = 16 * joist_values["Fv"] * breadth * depth * 1e-6 / 2 + 2 * depth * 1e-3
     
-    return joist_lb, joist_ls, new_fb
+    return joist_lb, joist_ls
 
 def calculate_deflections(joist_values, joist_i, weight_on_joists, no_of_spans):
     """
@@ -310,28 +310,34 @@ def calculate_deflections(joist_values, joist_i, weight_on_joists, no_of_spans):
     
     return deflection_360, deflection_16
 
-def calculate_shores_values(final_values, final_parameter_i, final_parameter_se, big_w, design_span, input_nominal_size, new_fb):
+def calculate_shores_values(shores_values, shores_i, shores_s, big_w, design_span, input_nominal_size):
     """
     Function to calculate shore-related values like lb, ls, and deflections.
     """
     # Calculate lb (shores distance based on bending stress)
-    shores_lb = ((120 * new_fb * final_parameter_se) / big_w) ** 0.5
+    try:
+        thickness, width = map(int, input_nominal_size.split("x"))
+        fb_factor = adjustments_factor[width][thickness]
+        fc_factor = adjustments_factor[thickness][2]  # Factor for compression (if needed)
+    except:
+        fb_factor = 1
+        fc_factor = 1
+
+    cd = 0.9  # Duration factor
+
+    # Calculate new fb after adjustment
+    new_fb = fb_factor * cd * shores_values["Fb"]
+    shores_lb = ((120 * new_fb * shores_s * 1e-9) / big_w) ** 0.5
 
     # Calculate ls based on shores type
     breadth, depth = map(float, inch_to_metric[input_nominal_size].split("*"))
-    shores_ls = ((192 * final_values["Fs"] * breadth * depth) / (15 * big_w)) + (2 * depth)
+    shores_ls = ((192 * shores_values["Fv"] * breadth * depth * 1e-6) / (15 * big_w)) + (2 * depth * 1e-3)
 
-    # Deflection constraints for shores
-    deflection_i_input = design_span / 360
-    deflection_ii_input = design_span / 16
-    deflection_i_equation = ((1743 * final_values["E"] * final_parameter_i) / (360 * big_w)) ** (1/3)
-    deflection_ii_equation = ((1743 * final_values["E"] * final_parameter_i) / (16 * big_w)) ** (1/4)
 
-    # Return the calculated shores values
-    final_deflection_i = min(deflection_i_input, deflection_i_equation)
-    final_deflection_ii = min(deflection_ii_input, deflection_ii_equation)
+    deflection_360 = ((1743 * shores_values["E"] * shores_i) / (360 * big_w)) ** (1/3)
+    deflection_16 = ((1743 * shores_values["E"] * shores_i) / (16 * big_w)) ** (1/4)
     
-    return shores_lb, shores_ls, final_deflection_i, final_deflection_ii
+    return shores_lb, shores_ls, deflection_360, deflection_16
 
 def main():
     """
@@ -356,21 +362,22 @@ def main():
     weight_on_joists = concrete_weight_plus_live_load + final_sheathing_weight
 
     # Step 6: Calculate joist-related values and deflections
-    joist_lb, joist_ls, new_fb = calculate_joist_values(joist_s, joist_values, rolling_shear, weight_on_joists, no_of_spans, input_nominal_size)
+    joist_lb, joist_ls = calculate_joist_values(joist_s, joist_values, rolling_shear, weight_on_joists, no_of_spans, input_nominal_size)
 
     joist_i /= 1e12
     final_deflection_1, final_deflection_2 = calculate_deflections(joist_values, joist_i, weight_on_joists, no_of_spans)
     final_distance_between_joist = min(joist_lb, joist_ls, final_deflection_1, final_deflection_2)
-    print(f"Final distance between joists: {final_distance_between_joist}")
 
+    input_nominal_size, shores_i, shores_s, shores_values = get_characteristics()
+    
     # Step 7: Calculate shore-related values and deflections
-    shores_lb, shores_ls, final_deflection_i, final_deflection_ii = calculate_shores_values(joist_values, joist_i, joist_s, weight_on_joists, design_span, input_nominal_size, new_fb)
+    shores_lb, shores_ls, final_deflection_i, final_deflection_ii = calculate_shores_values(shores_values, shores_i, shores_s, weight_on_joists, design_span, input_nominal_size)
     final_distance_between_shores = min(shores_lb, shores_ls, final_deflection_i, final_deflection_ii)
 
     # Step 8: Output final distances for sheathing, joist, and shores
     print()
-    print(f"Final distance between sheathing: {final_distance_between_sheathing}")
-    print(f"Final distance between joists: {final_distance_between_joist}")
+    print(f"Final distance between joists: {final_distance_between_sheathing}")
+    print(f"Final distance between stringers: {final_distance_between_joist}")
     print(f"Final distance between shores: {final_distance_between_shores}")
 
 if __name__ == "__main__":
