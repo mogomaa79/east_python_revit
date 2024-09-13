@@ -136,26 +136,27 @@ def get_sheathing_distance(final_values, final_parameter, concrete_weight_plus_l
     fs = final_values["Fs"]
     E = final_values["E"]
 
-    print(f"fb: {fb}")
+    print(f"fb: {fb:.2f}")
     
     se_index = 2 if is_plywood else 1
     final_parameter_se = final_parameter[se_index]
+	rolling_shear = final_parameter[-1]
     print(f"se: {final_parameter_se}")
     print(f"wb: {concrete_weight_plus_live_load}")
     
-    print(f"fs: {fs}")
+    print(f"fs: {fs:.2f}")
     print(f"E: {E}")
     
     i_index = 1 if is_plywood else 0
     final_parameter_i = final_parameter[i_index]
-    print(f"I: {final_parameter_i}")
+    print(f"I: {final_parameter_i:.2f}")
 
     design_span = float(input("Enter design span (m): ")) * 1000
 
     lb_constant = 120 if no_of_spans == 3 else 96
     lb = (((lb_constant * fb * final_parameter_se) / concrete_weight_plus_live_load) ** 0.5) / 1000 
 
-    ls = (ls_constant_mapper[no_of_spans] * fs * final_parameter_se) / (concrete_weight_plus_live_load * 1000)
+    ls = (ls_constant_mapper[no_of_spans] * fs * rolling_shear) / (concrete_weight_plus_live_load * 1000)
 
     deflection_a_input = design_span / 360
     deflection_b_input = design_span / 16
@@ -164,14 +165,14 @@ def get_sheathing_distance(final_values, final_parameter, concrete_weight_plus_l
     final_deflection_a = min(deflection_a_input, deflection_a_equation)
     final_deflection_b = min(deflection_b_input, deflection_b_equation)
 
-    print(f"lb: {lb}")
-    print(f"ls: {ls} OOM FASH5")
-    print(f"std deflection conservative: {deflection_a_input}")
-    print(f"std deflection conservative equation: {deflection_a_equation}")
-    print(f"std deflection non-conservative: {deflection_b_input}")
-    print(f"std deflection non-conservative equation: {deflection_b_equation}")
-    print(f"d a: {final_deflection_a}")
-    print(f"d b: {final_deflection_b}")
+    print(f"lb: {lb:.2f}")
+    print(f"ls: {ls:.2f} OOM FASH5")
+    print(f"std deflection conservative: {deflection_a_input:.2f}")
+    print(f"std deflection conservative equation: {deflection_a_equation:.2f}")
+    print(f"std deflection non-conservative: {deflection_b_input:.2f}")
+    print(f"std deflection non-conservative equation: {deflection_b_equation:.2f}")
+    print(f"d a: {final_deflection_a:.2f}")
+    print(f"d b: {final_deflection_b:.2f}")
 
     final_distance_between_sheathing = min(lb, ls, final_deflection_a, final_deflection_b)
     print(f"Final distance between sheathing: {final_distance_between_sheathing}")
