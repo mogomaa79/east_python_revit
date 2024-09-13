@@ -1,2 +1,1 @@
-Question about Ls & Lb ---> Unit Management
-Inches into Nominal Size (Input or Smart calc from book)
+Divide into Classes
