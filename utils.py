@@ -1,3 +1,48 @@
+def get_characteristics():
+    """
+    Function to gather nominal size and species information from the user.
+    Returns the nominal size and thickness in inches.
+    """
+    # Input for nominal size
+    input_nominal_size = input("Please enter nominal size: ")
+    while input_nominal_size not in inch_options:
+        input_nominal_size = input(f"Invalid option! Only {inch_options} are allowed. Please enter nominal size: ")
+
+    # Input for species type
+    species_nominal = input("Please choose between Douglas-Fir-Larch (1), Hem-Fir (2), Spruce-Pine-Fir (3): ")
+    while species_nominal not in ["1", "2", "3"]:
+        species_nominal = input("Invalid option! Please choose between Douglas-Fir-Larch (1), Hem-Fir (2), Spruce-Pine-Fir (3): ")
+
+    # Input for species grade
+    species_grade = input("Please choose species grade (1 or 2): ")
+    while species_grade not in ["1", "2"]:
+        species_grade = input("Invalid option! Only 1 or 2 are allowed. Please choose species grade: ")
+    
+    direction = input("Please choose X (1) or Y (2) direction: ")
+    while direction not in ["1", "2"]:
+        direction = input("Invalid option! Please choose X (1) or Y (2) direction: ")
+    direction = "x" if direction == "1" else "y"
+
+    # Displaying nominal values and selected species details
+    print(f"Nominal Values: {big_table[input_nominal_size]}")
+    i = big_table[input_nominal_size]["I" + direction]
+    s = big_table[input_nominal_size]["S" + direction]
+
+    species_nominal = species_nominal_mapper[species_nominal]
+    values = species_and_nominal_table[species_nominal + species_grade]
+    print(f"Grade: {values}")
+
+    return input_nominal_size, i, s, values
+
+def get_float(prompt):
+    """Function to get valid float input with error handling."""
+    while True:
+        try:
+            value = float(input(prompt))
+            return value
+        except ValueError:
+            print("Invalid Number! Please enter a valid number.")
+
 # Options for non-motorized and motorized types
 non_motorized_options = {
     0.10: 4.8,

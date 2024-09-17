@@ -1,42 +1,6 @@
 from bisect import bisect_right
 from utils import *
 
-def get_characteristics():
-    """
-    Function to gather nominal size and species information from the user.
-    Returns the nominal size and thickness in inches.
-    """
-    # Input for nominal size
-    input_nominal_size = input("Please enter nominal size: ")
-    while input_nominal_size not in inch_options:
-        input_nominal_size = input(f"Invalid option! Only {inch_options} are allowed. Please enter nominal size: ")
-
-    # Input for species type
-    species_nominal = input("Please choose between Douglas-Fir-Larch (1), Hem-Fir (2), Spruce-Pine-Fir (3): ")
-    while species_nominal not in ["1", "2", "3"]:
-        species_nominal = input("Invalid option! Please choose between Douglas-Fir-Larch (1), Hem-Fir (2), Spruce-Pine-Fir (3): ")
-
-    # Input for species grade
-    species_grade = input("Please choose species grade (1 or 2): ")
-    while species_grade not in ["1", "2"]:
-        species_grade = input("Invalid option! Only 1 or 2 are allowed. Please choose species grade: ")
-    
-    direction = input("Please choose X (1) or Y (2) direction: ")
-    while direction not in ["1", "2"]:
-        direction = input("Invalid option! Please choose X (1) or Y (2) direction: ")
-    direction = "x" if direction == "1" else "y"
-
-    # Displaying nominal values and selected species details
-    print(f"Nominal Values: {big_table[input_nominal_size]}")
-    i = big_table[input_nominal_size]["I" + direction]
-    s = big_table[input_nominal_size]["S" + direction]
-
-    species_nominal = species_nominal_mapper[species_nominal]
-    shores_values = species_and_nominal_table[species_nominal + species_grade]
-    print(f"Grade: {shores_values}")
-
-    return input_nominal_size, i, s, shores_values
-
 class Sheathing:
     def __init__(self, concrete_weight_plus_live_load=0):
         self.is_plywood = None
@@ -231,11 +195,12 @@ class Sheathing:
 class Joisting:
     def __init__(self, weight_on_joists=0, no_of_spans=0, rolling_shear=0):
         self.nominal_size, self.joist_i, self.joist_s, self.joist_values = get_characteristics()
+        self.joist_i /= 1e12
         self.weight_on_joists = weight_on_joists
         self.no_of_spans = no_of_spans
         self.rolling_shear = rolling_shear
 
-    def calculate_stringing_distance(self):
+    def get_stringing_distance(self):
         """Calculate joist-related values."""
         try:
             thickness, width = map(int, self.nominal_size.split("x"))
@@ -264,12 +229,11 @@ class Joisting:
         return min(joist_lb, joist_ls, deflection_360, deflection_16)
 
 class Shores:
-    def __init__(self):
-        self.shores_values = None
-        self.shores_i = None
-        self.shores_s = None
+    def __init__(self, weight_on_shores=0):
+        self.nominal_size, self.shores_i, self.shores_s, self.shores_values = get_characteristics()
+        self.weight_on_shores = weight_on_shores
 
-    def calculate_shores_values(self, shores_values, shores_i, shores_s, weight_on_joists, nominal_size):
+    def get_shores_distance(self):
         """Calculate shores-related values."""
         try:
             thickness, width = map(int, self.nominal_size.split("x"))
@@ -278,33 +242,39 @@ class Shores:
             fb_factor = 1
 
         cd = 0.9
-        new_fb = fb_factor * cd * shores_values["Fb"]
-        shores_lb = ((120 * new_fb * shores_s * 1e-9) / weight_on_joists) ** 0.5
-        breadth, depth = map(float, inch_to_metric[nominal_size].split("*"))
-        shores_ls = (192 * shores_values["Fv"] * breadth * depth * 1e-6) / (15 * weight_on_joists) + 2 * depth * 1e-3
+        new_fb = fb_factor * cd * self.shores_values["Fb"]
+        shores_lb = ((120 * new_fb * self.shores_s * 1e-9) / self.weight_on_shores) ** 0.5
+        breadth, depth = map(float, inch_to_metric[self.nominal_size].split("*"))
+        shores_ls = (192 * self.shores_values["Fv"] * breadth * depth * 1e-6) / (15 * self.weight_on_shores) + 2 * depth * 1e-3
 
-        deflection_360 = ((1743 * shores_values["E"] * shores_i) / (360 * weight_on_joists)) ** (1/3)
-        deflection_16 = ((1743 * shores_values["E"] * shores_i) / (16 * weight_on_joists)) ** (1/4)
+        deflection_360 = ((1743 * self.shores_values["E"] * self.shores_i) / (360 * self.weight_on_shores)) ** (1/3)
+        deflection_16 = ((1743 * self.shores_values["E"] * self.shores_i) / (16 * self.weight_on_shores)) ** (1/4)
 
-        return shores_lb, shores_ls, deflection_360, deflection_16
+        return min(shores_lb, shores_ls, deflection_360, deflection_16)
 
 class Props:
-    def calculate_props_distance(self, concrete_weight_plus_live_load):
-        """Calculate props distance based on load."""
-        r1 = float(input("Please enter r1: "))
-        r2 = float(input("Please enter r2: "))
-        mass = float(input("Please enter mass of props: "))
-        y = float(input("Please enter y: "))
+    def __init__(self, weight_on_props=0):
+        self.weight_on_props = weight_on_props
+
+    def calculate_props_distance(self):
+        """
+        Function to calculate the distance between props.
+        """
+        r1 = get_float("Please enter r1: ")
+        r2 = get_float("Please enter r2: ")
+        mass = get_float("Please enter mass of props: ")
         inertia = 0.5 * mass * (r1 ** 2 + r2 ** 2)
-        e = float(input("Please enter Modulus of Elasticity: "))
-        fv = float(input("Please enter fv: "))
-        fb = float(input("Please enter fb: "))
+        y = get_float("Please enter y: ")
+        s = inertia / y
+        e = get_float("Please enter Modulus of Elasticity: ")
+        fv = get_float("Please enter fv: ")
+        fb = get_float("Please enter fb: ")
 
-        lb = (120 * fb * inertia / concrete_weight_plus_live_load) ** 0.5
-        lv = (192 * fv * r1 * r2 / (15 * concrete_weight_plus_live_load)) + 2 * r1
 
-        deflection_360 = ((1743 * e * inertia) / (360 * concrete_weight_plus_live_load)) ** (1/3)
-        deflection_16 = ((1743 * e * inertia) / (16 * concrete_weight_plus_live_load)) ** (1/4)
+        lb = (120 * fb * s / self.weight_on_props) ** 0.5
+        lv = (192 * fv * r1 * r2 / 15 * self.weight_on_props) + 2 * r1
+        deflection_360 = ((1743 * e * inertia) / (360 * self.weight_on_props)) ** (1/3)
+        deflection_16 = ((1743 * e * inertia) / (16 * self.weight_on_props)) ** (1/4)
 
         return min(lb, lv, deflection_360, deflection_16)
 
@@ -343,42 +313,45 @@ class BaseSystem:
         joist_dist, _ = self.sheathing.get_sheathing_distance()
         print(f"Final distance between joists: {joist_dist}")
         
-
 class TraditionalSystem(BaseSystem):
     def __init__(self):
         super().__init__()
         self.joisting = None
-        self.shores = Shores()
+        self.shores = None
+        self.total_load = 0
+
+    def _run_stringer(self):
+        joist_dist, n_spans = self.sheathing.get_sheathing_distance()
+        print(f"Final distance between joists: {joist_dist}\n")
+
+        self.total_load = self.sheathing.concrete_weight_plus_live_load + self.sheathing.final_sheathing_weight
+        self.joisting = Joisting(self.total_load, n_spans, self.sheathing.final_parameter[-1])
+        stringing_dist = self.joisting.get_stringing_distance()
+        print(f"Final distance between stringers: {stringing_dist}\n")
+        return joist_dist, stringing_dist
 
     def run(self):
-        joist_dist, n_spans = self.sheathing.get_sheathing_distance()
-        print(f"Final distance between joists: {joist_dist}")
+        joist_dist, stringing_dist = self._run_stringer()
+        self.shores = Shores(self.total_load)
+        shores_dist = self.shores.get_shores_distance()
 
-        total_load = self.sheathing.concrete_weight_plus_live_load + self.sheathing.final_sheathing_weight
-        self.joisting = Joisting(total_load, n_spans, self.sheathing.final_parameter[-1])
-        stringing_dist = self.joisting.calculate_stringing_distance()
-        print(f"Final distance between joists: {stringing_dist}")
+        print(f"\nFinal distance between joists: {joist_dist}")
+        print(f"Final distance between stringers: {stringing_dist}")
+        print(f"Final distance between shores: {shores_dist}")
 
-    def run_traditional_calculations(self, concrete_weight_plus_live_load):
-        """Run calculations for the traditional system, including joisting and shores."""
-        sheathing_values, final_parameter, final_sheathing_weight = self.run_sheathing_calculations()
-
-        self.nominal_size, joist_i, joist_s, joist_values = self.joisting.get_characteristics()
-        joist_lb, joist_ls = self.joisting.calculate_joist_values(joist_s, joist_values, 0, concrete_weight_plus_live_load, 2, self.nominal_size)
-
-        shores_lb, shores_ls, deflection_360, deflection_16 = self.shores.calculate_shores_values({}, 0, 0, concrete_weight_plus_live_load, self.nominal_size)
-        print(f"Final shores distance: {shores_lb}, {shores_ls}")
-
-class PropsSystem(BaseSystem):
+class PropsSystem(TraditionalSystem):
     def __init__(self):
         super().__init__()
-        self.props = Props()
+        self.props = None
 
-    def run_props_calculations(self, concrete_weight_plus_live_load):
-        """Run calculations for the props system."""
-        sheathing_values, final_parameter, final_sheathing_weight = self.run_sheathing_calculations()
-        props_distance = self.props.calculate_props_distance(concrete_weight_plus_live_load)
-        print(f"Final props distance: {props_distance}")
+    def run(self):
+        joist_dist, stringing_dist = self._run_stringer()
+        self.props = Props(self.total_load)
+        props_dist = self.props.calculate_props_distance()
+
+        print(f"\nFinal distance between joists: {joist_dist}")
+        print(f"Final distance between stringers: {stringing_dist}")
+        print(f"Final distance between props: {props_dist}")
 
 # Example usage:
 if __name__ == "__main__":
@@ -388,7 +361,4 @@ if __name__ == "__main__":
     else:
         system = PropsSystem()
 
-    if system_choice == "1":
-        system.run()
-    else:
-        system.run()
+    system.run()

@@ -433,4 +433,4 @@ def main():
     print(f"Final distance between shores: {final_distance_between_shores}")
 
 if __name__ == "__main__":
-    print(calculate_props_distance(20))
+    main()
