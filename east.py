@@ -9,14 +9,10 @@ def get_concrete_weight():
     """
     
     # User input
-    unit_weight_of_concrete = float(input("Please enter unit weight of concrete: "))
-    thickness_of_slab = float(input("Please enter thickness of slab: "))
-    suitable_live_load = float(input("Please enter suitable live load: "))
-    is_motorized = input("Please choose Motorized (1) or non-motorized (2): ")
-
-    # Validate motorized input
-    while is_motorized not in ["1", "2"]:
-        is_motorized = input("Invalid Option! Please choose Motorized (1) or Non-motorized (2): ")
+    unit_weight_of_concrete = get_float("Please enter unit weight of concrete: ")
+    thickness_of_slab = get_float("Please enter thickness of slab: ")
+    suitable_live_load = get_float("Please enter suitable live load: ")
+    is_motorized = get_int("Please choose Motorized (1) or non-motorized (2): ", 1, 2)
 
     # Select options based on motorized or non-motorized choice
     final_option = motorized_options if is_motorized == "1" else non_motorized_options

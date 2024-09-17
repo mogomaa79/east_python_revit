@@ -3,25 +3,11 @@ def get_characteristics():
     Function to gather nominal size and species information from the user.
     Returns the nominal size and thickness in inches.
     """
-    # Input for nominal size
-    input_nominal_size = input("Please enter nominal size: ")
-    while input_nominal_size not in inch_options:
-        input_nominal_size = input(f"Invalid option! Only {inch_options} are allowed. Please enter nominal size: ")
-
-    # Input for species type
-    species_nominal = input("Please choose between Douglas-Fir-Larch (1), Hem-Fir (2), Spruce-Pine-Fir (3): ")
-    while species_nominal not in ["1", "2", "3"]:
-        species_nominal = input("Invalid option! Please choose between Douglas-Fir-Larch (1), Hem-Fir (2), Spruce-Pine-Fir (3): ")
-
-    # Input for species grade
-    species_grade = input("Please choose species grade (1 or 2): ")
-    while species_grade not in ["1", "2"]:
-        species_grade = input("Invalid option! Only 1 or 2 are allowed. Please choose species grade: ")
-    
-    direction = input("Please choose X (1) or Y (2) direction: ")
-    while direction not in ["1", "2"]:
-        direction = input("Invalid option! Please choose X (1) or Y (2) direction: ")
-    direction = "x" if direction == "1" else "y"
+    input_nominal_size = get_option("Please enter nominal size: ", inch_options)
+    species_nominal = get_int("Please choose between Douglas-Fir-Larch (1), Hem-Fir (2), Spruce-Pine-Fir (3): ", 1, 3)
+    species_grade = get_int("Please choose species grade (1 or 2): ", 1, 2)
+    direction = get_int("Please choose X (1) or Y (2) direction: ", 1, 2)
+    direction = "x" if direction == 1 else "y"
 
     # Displaying nominal values and selected species details
     print(f"Nominal Values: {big_table[input_nominal_size]}")
@@ -29,7 +15,7 @@ def get_characteristics():
     s = big_table[input_nominal_size]["S" + direction]
 
     species_nominal = species_nominal_mapper[species_nominal]
-    values = species_and_nominal_table[species_nominal + species_grade]
+    values = species_and_nominal_table[f"{species_nominal}{species_grade}"]
     print(f"Grade: {values}")
 
     return input_nominal_size, i, s, values
@@ -42,6 +28,28 @@ def get_float(prompt):
             return value
         except ValueError:
             print("Invalid Number! Please enter a valid number.")
+
+def get_int(prompt, min_value=None, max_value=None):
+    while True:
+        try:
+            value = int(input(prompt))
+            if (min_value is not None and value < min_value) or (max_value is not None and value > max_value):
+                raise ValueError
+            return value
+        except ValueError:
+            print(f"Please enter a valid integer between {min_value} and {max_value}.")
+
+def get_option(prompt, options, float=False):
+    """Function to get valid option input with error handling."""
+    while True:
+        if float:
+            value = get_float(prompt)
+        else:
+            value = input(prompt)
+
+        if value in options:
+            return value
+        print(f"Invalid Option! Please choose between {options}.")
 
 # Options for non-motorized and motorized types
 non_motorized_options = {
@@ -68,7 +76,6 @@ motorized_options = {
 
 # Thickness options and corresponding weights for plyform, different species, and structural marine plywoods
 thickness_options = [0, 0.10, 0.13, 0.15, 0.18, 0.20, 0.23, 0.25, 0.30, 1]
-
 plyform_thickness = [11.9, 12.7, 15.1, 15.9, 18.25, 19.05, 22.22, 25.4, 28.6]
 different_species_thickness = [6.78, 7.32, 10.80, 13.97, 14.43, 14.88, 20.75, 21.23]
 structural_marine_thickness = [8.69, 9.47, 13.84, 18.21, 19.00, 19.76, 27.71, 28.47]
@@ -238,8 +245,8 @@ plywood_along_marine = {
 }
 
 rolling_shear_table = {
-    "1": [3.01644, 3.591, 3.01644, 3.591, 0],
-    "2": [2.10672, 2.53764, 2.10672, 2.53764, 2.29824]
+    1: [3.01644, 3.591, 3.01644, 3.591, 0],
+    2: [2.10672, 2.53764, 2.10672, 2.53764, 2.29824]
 }
 
 # Stress values for different species and marine plywood
@@ -286,21 +293,20 @@ stress_of_plywood = {
 	}
 }
 
-
 plyform_stress = {
-	"1": {
+	1: {
 		"Fb": 13306.89,
 		"Fs": 496.42,
 		"E": 11376354,
 		"Ee": 10342140,
 	},
-	"2": {
+	2: {
 		"Fb": 9170.03,
 		"Fs": 496.42,
 		"E": 9859506.8,
 		"Ee": 8963188,
 	},
-	"3": {
+	3: {
 		"Fb": 13306.89,
 		"Fs": 703.27,
 		"E": 11376354,
@@ -418,9 +424,9 @@ species_and_nominal_table = {
 
 # Mapper to map species index to species type
 species_nominal_mapper = {
-    "1": "dou",
-    "2": "hem",
-    "3": "spr"
+    1: "dou",
+    2: "hem",
+    3: "spr"
 }
 
 # Dictionary of adjustment factors based on key values

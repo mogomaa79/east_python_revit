@@ -13,23 +13,17 @@ class Sheathing:
 
     def _get_sheathing_info(self):
         """Get sheathing details from user."""
-        plywood_or_plyform = input("Please choose between Plywood (1) and Plyform (2): ")
-        while plywood_or_plyform not in ["1", "2"]:
-            plywood_or_plyform = input("Invalid option! Please choose between Plywood (1) and Plyform (2): ")
-        self.is_plywood = plywood_or_plyform == "1"
+        plywood_or_plyform = get_int("Please choose between Plywood (1) and Plyform (2): ", 1, 2)
+        self.is_plywood = plywood_or_plyform == 1
 
-        if not self.is_plywood:
-            self.ply_class = input("Please choose between Class I (1), Class II (2), Structural I (3): ")
-            while self.ply_class not in ["1", "2", "3"]:
-                self.ply_class = input("Invalid Option! Please choose between Class I, Class II, or Structural I (1, 2, 3): ")
+        if self.is_plywood:
+            self.ply_class = get_int("Please choose between Structural I and Marine (1), another class for different species (2): ", 1, 2)
         else:
-            self.ply_class = input("Please choose between Structural I and Marine (1), another class for different species (2): ")
-            while self.ply_class not in ["1", "2"]:
-                self.ply_class = input("Invalid Option! Please choose between Structural I and Marine (1), another class (2): ")
+            self.ply_class = get_int("Please choose between Class I (1), Class II (2), Structural I (3): ", 1, 3)
+            
 
-        self.is_face_grain_across = input("Please choose between face grain across (1) or along (2): ")
-        while self.is_face_grain_across not in ["1", "2"]:
-            self.is_face_grain_across = input("Invalid Option! Please choose face grain across (1) or along (2): ")
+        self.is_face_grain_across = get_int("Please choose between face grain across (1) or along (2): ", 1, 2)
+
         return self.is_plywood, self.ply_class, self.is_face_grain_across
 
     def _get_sheathing_thickness(self):
@@ -40,35 +34,27 @@ class Sheathing:
         """
         # For Plyform sheathing
         if not self.is_plywood:
-            input_plyform_thickness = float(input("Please enter plyform thickness: "))
-            while input_plyform_thickness not in plyform_thickness:
-                print(f"Invalid option. Only {', '.join(map(str, plyform_thickness))} are allowed.")
-                input_plyform_thickness = float(input("Please enter plyform thickness: "))
+            input_plyform_thickness = get_option("Please enter plyform thickness: ", plyform_thickness, float=True)
 
             final_sheathing_thickness = input_plyform_thickness
             final_sheathing_weight = plyform_weight_by_thickness[final_sheathing_thickness]
             final_parameter = plyform_general_mapper[f"{self.ply_class}_{self.is_face_grain_across}"][final_sheathing_thickness]
+        
+        # For Plywood with Structural/Marine type
+        elif self.ply_class == 1:
+            input_structural_marine_thickness = get_option("Please enter structural marine thickness: ", structural_marine_thickness, float=True)
+
+            final_sheathing_thickness = input_structural_marine_thickness
+            final_sheathing_weight = plywood_weight_marine[final_sheathing_thickness]
+            final_parameter = plywood_across_marine[final_sheathing_thickness] if self.is_face_grain_across == 1 else plywood_along_marine[final_sheathing_thickness]
 
         # For Plywood with different species
-        elif self.ply_class == "2":
-            input_species_thickness = float(input("Please enter different species thickness: "))
-            while input_species_thickness not in different_species_thickness:
-                print(f"Invalid option. Only {', '.join(map(str, different_species_thickness))} are allowed.")
-                input_species_thickness = float(input("Please enter different species thickness: "))
+        elif self.ply_class == 2:
+            input_species_thickness = get_option("Please enter different species thickness: ", different_species_thickness, float=True)
 
             final_sheathing_thickness = input_species_thickness
             final_sheathing_weight = plywood_weight_different[final_sheathing_thickness]
-            final_parameter = plywood_across_different[final_sheathing_thickness] if self.is_face_grain_across == "1" else plywood_along_different[final_sheathing_thickness]
-
-        # For Plywood with Structural/Marine type
-        elif self.ply_class == "1":
-            input_structural_marine_thickness = float(input("Please enter structural marine thickness: "))
-            while input_structural_marine_thickness not in structural_marine_thickness:
-                print(f"Invalid option. Only {', '.join(map(str, structural_marine_thickness))} are allowed.")
-                input_structural_marine_thickness = float(input("Please enter structural marine thickness: "))
-            final_sheathing_thickness = input_structural_marine_thickness
-            final_sheathing_weight = plywood_weight_marine[final_sheathing_thickness]
-            final_parameter = plywood_across_marine[final_sheathing_thickness] if self.is_face_grain_across == "1" else plywood_along_marine[final_sheathing_thickness]
+            final_parameter = plywood_across_different[final_sheathing_thickness] if self.is_face_grain_across == 1 else plywood_along_different[final_sheathing_thickness]
 
         # Output the results of the thickness calculations
         print(f"Final Sheathing Thickness: {final_sheathing_thickness}")
@@ -79,23 +65,17 @@ class Sheathing:
         
         # Additional input required if plywood is selected
         if self.is_plywood:
-            stress_group = int(input("Please choose stress group of plywood (1-6): "))
-            while stress_group not in range(1, 7): 
-                stress_group = int(input("Invalid option! Please choose stress group of plywood (1-6): "))
-
+            stress_group = get_int("Please choose stress group of plywood (1-6): ", 1, 6)
             final_stress = stress_of_plywood
-            stress_grade_level = input("Please choose stress grade level S-1, 2, or 3: ")
-            while stress_grade_level not in ["1", "2", "3"]:
-                stress_grade_level = input("Invalid option! Please choose stress grade level S-1, 2, or 3: ")
+
+            stress_grade_level = get_int("Please choose stress grade level S-1, 2, or 3: ", 1, 3)
 
             # Determine index based on stress grade level and wet/dry condition
-            if stress_grade_level in ["1", "2"]:
-                is_wet = input("Is it wet (1) or dry (2)? ")
-                while is_wet not in ["1", "2"]:
-                    is_wet = input("Invalid option! Is it wet (1) or dry (2)? ")
-                index = 0 if stress_grade_level == "1" and is_wet == "1" else 1 if stress_grade_level == "1" and is_wet == "2" else 2 if stress_grade_level == "2" and is_wet == "1" else 3
+            if stress_grade_level != 3:
+                is_wet = get_int("Is it wet (1) or dry (2)? ", 1, 2)
+                index = 0 if stress_grade_level == 1 and is_wet == 1 else 1 if stress_grade_level == 1 and is_wet == 2 else 2 if stress_grade_level == 2 and is_wet == 1 else 3
             else:
-                is_wet = "2"
+                is_wet = 2
                 index = 4
 
             # Assign final stress values
@@ -124,11 +104,7 @@ class Sheathing:
         Returns the number of spans, design span, and final distance between sheathing.
         """
         # Get number of spans from the user
-        no_of_spans = input("Please enter number of spans (1-3): ")
-        while no_of_spans not in ["1", "2", "3"]:
-            no_of_spans = input("Invalid option! Please enter number of spans (1-3): ")
-
-        no_of_spans = int(no_of_spans)
+        no_of_spans = get_int("Please enter number of spans (1-3): ", 1, 3)
 
         # Bending stress (Fb), shear stress (Fs), and modulus of elasticity (E)
         fb = self.sheathing_values["Fb"]
@@ -155,7 +131,7 @@ class Sheathing:
         print(f"I: {final_parameter_i:.2f}")
 
         # Design span input
-        design_span = float(input("Enter design span (m): ")) * 1000  # Convert to millimeters
+        design_span = get_float("Enter design span (m): ") * 1000  # Convert to millimeters
 
         # Calculate lb (based on bending stress and concrete weight)
         lb_constant = 120 if no_of_spans == 3 else 96
@@ -285,13 +261,10 @@ class BaseSystem:
 
     def calculate_concrete_weight(self):
         """Calculate concrete weight plus live load."""
-        unit_weight_of_concrete = float(input("Please enter unit weight of concrete: "))
-        thickness_of_slab = float(input("Please enter thickness of slab: "))
-        suitable_live_load = float(input("Please enter suitable live load: "))
-        is_motorized = input("Please choose Motorized (1) or Non-motorized (2): ")
-
-        while is_motorized not in ["1", "2"]:
-            is_motorized = input("Invalid Option! Please choose Motorized (1) or Non-motorized (2): ")
+        unit_weight_of_concrete = get_float("Please enter unit weight of concrete: ")
+        thickness_of_slab = get_float("Please enter thickness of slab: ")
+        suitable_live_load = get_float("Please enter suitable live load: ")
+        is_motorized = get_int("Please choose Motorized (1) or non-motorized (2): ", 1, 2)
 
         final_option = motorized_options if is_motorized == "1" else non_motorized_options
 
@@ -355,8 +328,8 @@ class PropsSystem(TraditionalSystem):
 
 # Example usage:
 if __name__ == "__main__":
-    system_choice = input("Select system: Traditional (1) or Props (2): ")
-    if system_choice == "1":
+    system_choice = get_int("Please choose between Traditional System (1) and Props System (2): ", 1, 2)
+    if system_choice == 1:
         system = TraditionalSystem()
     else:
         system = PropsSystem()
