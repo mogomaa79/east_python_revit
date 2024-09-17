@@ -117,7 +117,7 @@ def get_sheathing_thickness(is_plywood, ply_class, is_face_grain_across):
     print(f"Final Sheathing Weight: {final_sheathing_weight}")
     print(f"Final Parameters: {final_parameter}\n")
 
-    shores_values = {}
+    sheathing_values = {}
     
     # Additional input required if plywood is selected
     if is_plywood:
@@ -143,22 +143,22 @@ def get_sheathing_thickness(is_plywood, ply_class, is_face_grain_across):
         # Assign final stress values
         for k, v in final_stress.items():
             if stress_group in v:
-                shores_values[k] = v[stress_group][index]
+                sheathing_values[k] = v[stress_group][index]
         
-        shores_values["Fs"] = rolling_shear_table[ply_class][index]
+        sheathing_values["Fs"] = rolling_shear_table[ply_class][index]
 
     # If Plyform is selected, assign stress values based on the class
     else:
-        shores_values = plyform_stress[ply_class]
+        sheathing_values = plyform_stress[ply_class]
 
     # Output final values and return them
     print("Final Values:")
-    for k, v in shores_values.items():
+    for k, v in sheathing_values.items():
         print(f"{k}: {v}")
 
-    return shores_values, final_parameter, final_sheathing_weight
+    return sheathing_values, final_parameter, final_sheathing_weight
 
-def get_sheathing_distance(shores_values, final_parameter, concrete_weight_plus_live_load, is_plywood):
+def get_sheathing_distance(sheathing_values, final_parameter, concrete_weight_plus_live_load, is_plywood):
     """
     Function to calculate the optimal sheathing distance based on input parameters like 
     bending stress, shear stress, elasticity, concrete weight, and live load.
@@ -172,9 +172,9 @@ def get_sheathing_distance(shores_values, final_parameter, concrete_weight_plus_
     no_of_spans = int(no_of_spans)
 
     # Bending stress (Fb), shear stress (Fs), and modulus of elasticity (E)
-    fb = shores_values["Fb"]
-    fs = shores_values["Fs"]
-    E = shores_values["E"]
+    fb = sheathing_values["Fb"]
+    fs = sheathing_values["Fs"]
+    E = sheathing_values["E"]
 
     print(f"fb: {fb:.2f}")
     
@@ -227,7 +227,7 @@ def get_sheathing_distance(shores_values, final_parameter, concrete_weight_plus_
     joist_dist = min(lb, ls, final_deflection_a, final_deflection_b)
     print(f"Final distance between joists: {joist_dist}")
 
-    return no_of_spans, design_span, joist_dist, rolling_shear
+    return no_of_spans, joist_dist, rolling_shear
 
 def get_characteristics():
     """
@@ -310,7 +310,7 @@ def calculate_deflections(joist_values, joist_i, weight_on_joists, no_of_spans):
     
     return deflection_360, deflection_16
 
-def calculate_shores_values(shores_values, shores_i, shores_s, big_w, design_span, input_nominal_size):
+def calculate_shores_values(shores_values, shores_i, shores_s, big_w, input_nominal_size):
     """
     Function to calculate shore-related values like lb, ls, and deflections.
     """
@@ -339,6 +339,58 @@ def calculate_shores_values(shores_values, shores_i, shores_s, big_w, design_spa
     
     return shores_lb, shores_ls, deflection_360, deflection_16
 
+def calculate_props_distance(concrete_weight_plus_live_load):
+    """
+    Function to calculate the distance between props.
+    """
+    r1 = input("Please enter r1: ")
+    while all([not s.isnumeric() for s in r1.split(".")]): # Get a faster way
+        print(r1)
+        r1 = input("Not a number! Please enter r1: ")
+    r1 = float(r1)
+    
+    r2 = input("Please enter r2: ")
+    while all([not s.isnumeric() for s in r2.split(".")]):
+        r2 = input("Not a number! Please enter r2: ")
+    r2 = float(r2)
+
+    mass = input("Please enter mass of props: ")
+    while all([not s.isnumeric() for s in mass.split(".")]):
+        mass = input("Not a number! Please enter mass of props: ")
+    mass = float(mass)
+
+    inertia = 0.5 * mass * (r1 ** 2 + r2 ** 2)
+
+    y = input("Please enter y: ")
+    while all([not s.isnumeric() for s in y.split(".")]):
+        y = input("Not a number! Please enter y: ")
+    y = float(y)
+
+    s = inertia / y
+
+    e = input("Please enter Modulus of Elasticity: ")
+    while all([not s.isnumeric() for s in e.split(".")]):
+        e = input("Not a number! Please enter Modulus of Elasticity: ")
+    e = float(e)
+
+    fv = input("Please enter fv: ")
+    while all([not s.isnumeric() for s in fv.split(".")]):
+        fv = input("Not a number! Please enter fv: ")
+    fv = float(fv)
+
+    fb = input("Please enter fb: ")
+    while all([not s.isnumeric() for s in fb.split(".")]):
+        fb = input("Not a number! Please enter fb: ")
+    fb = float(fb)
+
+    lb = (120 * fb * s / concrete_weight_plus_live_load) ** 0.5
+
+    lv = (192 * fv * r1 * r2 / 15 * concrete_weight_plus_live_load) + 2 * r1
+
+    deflection_360 = ((1743 * e * inertia) / (360 * concrete_weight_plus_live_load)) ** (1/3)
+    deflection_16 = ((1743 * e * inertia) / (16 * concrete_weight_plus_live_load)) ** (1/4)
+    return min(lb, lv, deflection_360, deflection_16)
+
 def main():
     """
     Main function that orchestrates the calculation process by calling other helper functions.
@@ -354,7 +406,7 @@ def main():
     sheathing_values, final_parameter, final_sheathing_weight = get_sheathing_thickness(is_plywood, ply_class, is_face_grain_across)
     
     # Step 4: Calculate distance between sheathing based on the input parameters
-    no_of_spans, design_span, final_distance_between_sheathing, rolling_shear = get_sheathing_distance(sheathing_values, final_parameter, concrete_weight_plus_live_load, is_plywood)
+    no_of_spans, final_distance_between_sheathing, rolling_shear = get_sheathing_distance(sheathing_values, final_parameter, concrete_weight_plus_live_load, is_plywood)
     
     # Step 5: Get characteristics of nominal size and sheathing thickness
     input_nominal_size, joist_i, joist_s, joist_values = get_characteristics()
@@ -371,7 +423,7 @@ def main():
     input_nominal_size, shores_i, shores_s, shores_values = get_characteristics()
     
     # Step 7: Calculate shore-related values and deflections
-    shores_lb, shores_ls, final_deflection_i, final_deflection_ii = calculate_shores_values(shores_values, shores_i, shores_s, weight_on_joists, design_span, input_nominal_size)
+    shores_lb, shores_ls, final_deflection_i, final_deflection_ii = calculate_shores_values(shores_values, shores_i, shores_s, weight_on_joists, input_nominal_size)
     final_distance_between_shores = min(shores_lb, shores_ls, final_deflection_i, final_deflection_ii)
 
     # Step 8: Output final distances for sheathing, joist, and shores
@@ -381,4 +433,4 @@ def main():
     print(f"Final distance between shores: {final_distance_between_shores}")
 
 if __name__ == "__main__":
-    main()  # Entry point for the program
+    print(calculate_props_distance(20))
