@@ -1,4 +1,4 @@
-from bisect import bisect_right
+import math
 from utils import *
 
 class Sheathing:
@@ -254,84 +254,41 @@ class Props:
 
         return min(lb, lv, deflection_360, deflection_16)
 
-class BaseSystem:
-    def __init__(self):
-        self.concrete_weight = self.calculate_concrete_weight()
-        self.sheathing = Sheathing(self.concrete_weight)
-
-    def calculate_concrete_weight(self):
-        """Calculate concrete weight plus live load."""
-        unit_weight_of_concrete = get_float("Please enter unit weight of concrete: ")
-        thickness_of_slab = get_float("Please enter thickness of slab: ")
-        suitable_live_load = get_float("Please enter suitable live load: ")
-        is_motorized = get_int("Please choose Motorized (1) or non-motorized (2): ", 1, 2)
-
-        final_option = motorized_options if is_motorized == "1" else non_motorized_options
-
-        concrete_weight = round(unit_weight_of_concrete * thickness_of_slab, 2)
-        print(f"Concrete Weight: {concrete_weight}")
-
-        concrete_weight_plus_live_load = concrete_weight + suitable_live_load
-        print(f"Concrete Weight plus Live Load: {concrete_weight_plus_live_load}")
-
-        final_thickness = thickness_options[bisect_right(thickness_options, thickness_of_slab)]
-        print(f"Final Thickness: {final_thickness}")
-
-        concrete_weight_plus_live_load = max(final_option[final_thickness], concrete_weight_plus_live_load)
-        print(f"Final Concrete Weight plus Live Load: {concrete_weight_plus_live_load}\n")
-
-        return concrete_weight_plus_live_load
+class Frames:
+    def __init__(self, total_load) -> None:
+        self.total_load = total_load
     
-    def run(self):
-        joist_dist, _ = self.sheathing.get_sheathing_distance()
-        print(f"Final distance between joists: {joist_dist}")
+    def calculate_critical_load(self):
+        """
+        Function to calculate the distance between frames in X and Y directions.
+        """
+        e = get_float("Please enter Modulus of Elasticity: ")
+        i_x = get_float("Please enter Moment of Inertia in X-section: ")
+        i_y = get_float("Please enter Moment of Inertia in Y-section: ")
+        k = get_float("Please enter k: ")
+        l = get_float("Please enter L (free length): ")
+
+        critical_load_x = (math.pi ** 2) * e * i_x / (l * k) ** 2
+        critical_load_y = (math.pi ** 2) * e * i_y / (l * k) ** 2
         
-class TraditionalSystem(BaseSystem):
-    def __init__(self):
-        super().__init__()
-        self.joisting = None
-        self.shores = None
-        self.total_load = 0
+        return critical_load_x, critical_load_y
 
-    def _run_stringer(self):
-        joist_dist, n_spans = self.sheathing.get_sheathing_distance()
-        print(f"Final distance between joists: {joist_dist}\n")
+    def calculate_frames_dist(self):
+        """
+        Function to calculate the distance between frames.
+        """
+        frame_width = get_float("Please enter frame width: ")
+        dist_to_nxt = get_float("Please enter distance to next frame (D): ")
+        dist_chosen = frame_width + dist_to_nxt
+        max_load = get_float("Please enter maximum load supported by frame: ")
+        bracing_length = get_float("Please enter length of bracing: ")
+        bracing_height = get_float("Please enter height of bracing: ")
+        other_direction_dist = max_load / (self.total_load * dist_chosen)
+        c = bracing_length ** 2 - bracing_height ** 2
+        return c, other_direction_dist
+        
 
-        self.total_load = self.sheathing.concrete_weight_plus_live_load + self.sheathing.final_sheathing_weight
-        self.joisting = Joisting(self.total_load, n_spans, self.sheathing.final_parameter[-1])
-        stringing_dist = self.joisting.get_stringing_distance()
-        print(f"Final distance between stringers: {stringing_dist}\n")
-        return joist_dist, stringing_dist
+        
 
-    def run(self):
-        joist_dist, stringing_dist = self._run_stringer()
-        self.shores = Shores(self.total_load)
-        shores_dist = self.shores.get_shores_distance()
 
-        print(f"\nFinal distance between joists: {joist_dist}")
-        print(f"Final distance between stringers: {stringing_dist}")
-        print(f"Final distance between shores: {shores_dist}")
-
-class PropsSystem(TraditionalSystem):
-    def __init__(self):
-        super().__init__()
-        self.props = None
-
-    def run(self):
-        joist_dist, stringing_dist = self._run_stringer()
-        self.props = Props(self.total_load)
-        props_dist = self.props.calculate_props_distance()
-
-        print(f"\nFinal distance between joists: {joist_dist}")
-        print(f"Final distance between stringers: {stringing_dist}")
-        print(f"Final distance between props: {props_dist}")
-
-# Example usage:
-if __name__ == "__main__":
-    system_choice = get_int("Please choose between Traditional System (1) and Props System (2): ", 1, 2)
-    if system_choice == 1:
-        system = TraditionalSystem()
-    else:
-        system = PropsSystem()
-
-    system.run()
+        
