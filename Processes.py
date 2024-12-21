@@ -287,8 +287,3 @@ class Frames:
         c = bracing_length ** 2 - bracing_height ** 2
         return c, other_direction_dist
         
-
-        
-
-
-        
