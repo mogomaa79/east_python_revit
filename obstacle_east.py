@@ -119,7 +119,7 @@ class Fast:
 
 def main():
     start_point = (0, 0)
-    frame_dist = 2.4
+    frame_dist = 2.5
     horizontal_dist = 0.15
     vertical_dist = 1.8
     obstacles = [(3, 3, 4, 4)]

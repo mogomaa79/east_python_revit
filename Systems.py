@@ -103,6 +103,6 @@ class FramesSystem(TraditionalSystem):
             print(f"Section in Y direction is NOT SAFE")
             return
 
-        exact_dist, other_dir_dist = self.frames.calculate_frames_dist()
-        print(f"Exact distance between frames: {exact_dist}")
-        print(f"Distance covered in chosen direction: {other_dir_dist}")
+        dist_x, dist_y = self.frames.calculate_frames_dist()
+        print(f"Distance in X-Direction: {dist_x}")
+        print(f"Distance in Y-Direction: {dist_y}")

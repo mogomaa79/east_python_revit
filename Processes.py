@@ -265,7 +265,7 @@ class Frames:
         e = get_float("Please enter Modulus of Elasticity: ")
         i_x = get_float("Please enter Moment of Inertia in X-section: ")
         i_y = get_float("Please enter Moment of Inertia in Y-section: ")
-        k = get_float("Please enter k: ")
+        k = get_float("Please enter k (degree of freedom): ")
         l = get_float("Please enter L (free length): ")
 
         critical_load_x = (math.pi ** 2) * e * i_x / (l * k) ** 2
@@ -277,13 +277,7 @@ class Frames:
         """
         Function to calculate the distance between frames.
         """
-        frame_width = get_float("Please enter frame width: ")
-        dist_to_nxt = get_float("Please enter distance to next frame (D): ")
-        dist_chosen = frame_width + dist_to_nxt
-        max_load = get_float("Please enter maximum load supported by frame: ")
-        bracing_length = get_float("Please enter length of bracing: ")
-        bracing_height = get_float("Please enter height of bracing: ")
-        other_direction_dist = max_load / (self.total_load * dist_chosen)
-        c = bracing_length ** 2 - bracing_height ** 2
-        return c, other_direction_dist
+        dist_x = get_float("Please enter distance to next frame in X (Dx): ")
+        dist_y = get_float("Please enter distance to next frame in Y (Dy): ")
+        return dist_x, dist_y
         
