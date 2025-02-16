@@ -1,4 +1,0 @@
-
-if trad or props input dist x and Y
-if east or fast input width
-if frames input width
