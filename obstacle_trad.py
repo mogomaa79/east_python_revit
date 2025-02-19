@@ -1,5 +1,8 @@
 import matplotlib.pyplot as plt
+from shapely.plotting import plot_polygon, plot_points
+from matplotlib.patches import Patch
 from arch_models import *
+import numpy as np
 
 class TraditionalProps:
     def __init__(self, start_point, min_dist, obstacles, shape, canti_dist):
@@ -7,28 +10,25 @@ class TraditionalProps:
         self.start_point = (int(start_point[0] * self.scale), int(start_point[1] * self.scale))
         self.min_dist = int(min_dist * self.scale)
         self.canti_dist = int(canti_dist * self.scale)
-        self.obstacles = [(int(x1 * self.scale), int(y1 * self.scale), int(x2 * self.scale), int(y2 * self.scale)) for x1, y1, x2, y2 in obstacles]
+        self.obstacles = obstacles
         self.shape = shape
         self.props = []
         self.cantilevers = []
 
     def is_inside_obstacle(self, x, y):
-        for obs in self.obstacles:
-            if obs[0] < x < obs[2] and obs[1] < y < obs[3]:
-                return True
-        return False
+        return any(obs.intersects(x / self.scale, y / self.scale) for obs in self.obstacles)
 
     def is_valid_position(self, x, y):
-        if not self.shape.is_inside(x / self.scale, y / self.scale) or self.is_inside_obstacle(x, y):
-            return False
-        return True
+        return self.shape.intersects(x / self.scale, y / self.scale) and not self.is_inside_obstacle(x, y)
 
     def generate_props(self):
-        self.props = []
-        for x in range(0, 100 * self.scale + 1, self.min_dist):
-            for y in range(0, 100 * self.scale + 1, self.min_dist):
-                if self.is_valid_position(x, y):
-                    self.props.append((x, y))
+        """Generate valid prop positions using NumPy meshgrid for efficiency."""
+        x_vals = np.arange(0, 100 * self.scale + 1, self.min_dist)
+        y_vals = np.arange(0, 100 * self.scale + 1, self.min_dist)
+        grid_x, grid_y = np.meshgrid(x_vals, y_vals)
+        points = np.vstack([grid_x.ravel(), grid_y.ravel()]).T
+
+        self.props = [(x, y) for x, y in points if self.is_valid_position(x, y)]
 
     def generate_cantilevers(self):
         canti_directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -45,44 +45,50 @@ class TraditionalProps:
 
     def is_edge_position(self, x, y, dx, dy):
         def is_near_obstacle():
-            for obs in self.obstacles:
-                if dx == 0:
-                    if abs(y - obs[1]) < self.canti_dist or abs(y - obs[3]) < self.canti_dist:
-                        return True
-                elif dy == 0:
-                    if abs(x - obs[0]) < self.canti_dist or abs(x - obs[2]) < self.canti_dist:
-                        return True
-            return False
+            return any(obs.limited(x / self.scale, y / self.scale, dx, dy, self.canti_dist / self.scale) for obs in self.obstacles)
 
         return (self.shape.limited(x / self.scale, y / self.scale, dx, dy, self.canti_dist / self.scale) or is_near_obstacle()) and self.is_valid_position(x, y)
 
     def plot_props_and_obstacles(self):
-        plt.figure(figsize=(5, 5))
-        ax = plt.gca()
+        """Plot obstacles, props, and cantilevers with improved visuals."""
+        fig, ax = plt.subplots(figsize=(15, 7.5))
 
-        for x, y in self.props:
-            ax.plot(x / self.scale, y / self.scale, 'bo')
+        # Plot obstacles
+        for obs in self.obstacles:
+            plot_polygon(obs.polygon, ax=ax, facecolor='red', edgecolor='black', alpha=0.6, linewidth=1.2, add_points=False)
 
-        for x, y in self.cantilevers:
-            ax.plot(x / self.scale, y / self.scale, 'go')
+        # Plot props
+        if self.props:
+            prop_points = [Point(x / self.scale, y / self.scale) for x, y in self.props]
+            plot_points(prop_points, ax=ax, marker='o', color='blue', markersize=4, alpha=0.8)
 
-        for (obs_x1, obs_y1, obs_x2, obs_y2) in self.obstacles:
-            rect = plt.Rectangle((obs_x1 / self.scale, obs_y1 / self.scale), (obs_x2 - obs_x1) / self.scale, (obs_y2 - obs_y1) / self.scale, fill=True, color='red', alpha=0.5)
-            ax.add_patch(rect)
+        # Plot cantilevers
+        if self.cantilevers:
+            canti_points = [Point(x / self.scale, y / self.scale) for x, y in self.cantilevers]
+            plot_points(canti_points, ax=ax, marker='o', color='green', markersize=4, alpha=0.8)
 
-        ax.set_xlim([-1, 30])
-        ax.set_ylim([-1, 30])
-        ax.set_title("Prop Placement with Obstacle Avoidance")
-        ax.set_xlabel("X coordinate")
-        ax.set_ylabel("Y coordinate")
-        plt.grid(True)
+        # Improve plot aesthetics
+        ax.set_xlim([-1, 22])
+        ax.set_ylim([-1, 20])
+        ax.set_title("Props | Traditional Obstacle Avoidance", fontsize=14, fontweight='bold')
+        ax.set_xlabel("X Coordinate", fontsize=12)
+        ax.set_ylabel("Y Coordinate", fontsize=12)
+        ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+
+        # Legend for clarity
+        legend_patches = [
+            Patch(facecolor='red', edgecolor='black', alpha=0.5, label="Obstacles"),
+            Patch(color='blue', label="Props"),
+            Patch(color='green', label="Cantilevers")
+        ]
+        ax.legend(handles=legend_patches, loc="upper right", fontsize=10)
+
         plt.show()
-
 
 def main():
     start_point = (0, 0)
     min_dist = 0.8
-    obstacles = [(0, 0, 1, 1), (2, 2, 3, 3), (7, 7, 8, 8)]
+    obstacles = [Obstacle(0, 0), Obstacle(2, 2), Obstacle(7, 7)]
     l_shape = L_shape(Rectangle([0, 15], [0, 13]), Rectangle([15, 25], [0, 6.5]))
     rect = Rectangle([0, 15], [0, 15])
     t_shape = T_shape(Rectangle([0, 15], [8, 20]), Rectangle([5, 10], [0, 8]))
