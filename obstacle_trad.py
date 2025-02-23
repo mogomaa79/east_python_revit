@@ -5,9 +5,9 @@ from arch_models import *
 import numpy as np
 
 class TraditionalProps:
-    def __init__(self, start_point, min_dist, obstacles, shape, canti_dist):
+    def __init__(self, min_dist, obstacles, shape, canti_dist):
         self.scale = 100  # Convert meters to centimeters
-        self.start_point = (int(start_point[0] * self.scale), int(start_point[1] * self.scale))
+        self.start_point = (0, 0)
         self.min_dist = int(min_dist * self.scale)
         self.canti_dist = int(canti_dist * self.scale)
         self.obstacles = obstacles
@@ -49,7 +49,7 @@ class TraditionalProps:
 
         return (self.shape.limited(x / self.scale, y / self.scale, dx, dy, self.canti_dist / self.scale) or is_near_obstacle()) and self.is_valid_position(x, y)
 
-    def plot_props_and_obstacles(self):
+    def plot(self):
         """Plot obstacles, props, and cantilevers with improved visuals."""
         fig, ax = plt.subplots(figsize=(15, 7.5))
 
@@ -68,11 +68,10 @@ class TraditionalProps:
             plot_points(canti_points, ax=ax, marker='o', color='green', markersize=4, alpha=0.8)
 
         # Improve plot aesthetics
-        ax.set_xlim([-1, 22])
+        ax.set_xlim([-1, 24])
         ax.set_ylim([-1, 20])
-        ax.set_title("Props | Traditional Obstacle Avoidance", fontsize=14, fontweight='bold')
-        ax.set_xlabel("X Coordinate", fontsize=12)
-        ax.set_ylabel("Y Coordinate", fontsize=12)
+        ax.set_xlabel("X", fontsize=12)
+        ax.set_ylabel("Y", fontsize=12)
         ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
 
         # Legend for clarity
@@ -86,7 +85,6 @@ class TraditionalProps:
         plt.show()
 
 def main():
-    start_point = (0, 0)
     min_dist = 0.8
     obstacles = [Obstacle(0, 0), Obstacle(2, 2), Obstacle(7, 7)]
     l_shape = L_shape(Rectangle([0, 15], [0, 13]), Rectangle([15, 25], [0, 6.5]))
@@ -102,10 +100,10 @@ def main():
     )
     canti_dist = 0.3
 
-    props_system = TraditionalProps(start_point, min_dist, obstacles, villa, canti_dist)
+    props_system = TraditionalProps(min_dist, obstacles, villa, canti_dist)
     props_system.generate_props()
     props_system.generate_cantilevers()
-    props_system.plot_props_and_obstacles()
+    props_system.plot()
 
 if __name__ == '__main__':
     main()

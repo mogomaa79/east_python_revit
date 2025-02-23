@@ -1,18 +1,14 @@
-import matplotlib.pyplot as plt
+from obstacle_frames import *
 
-class Fast:
-    def __init__(self, start_point, frame_dist, horizontal_dist, vertical_dist, obstacles, limits_x, limits_y, canti_dist):
-        self.start_point = start_point
+class Fast(Frames):
+    def __init__(self, frame_dist, horizontal_dist, vertical_dist, obstacles, shape):
+        super().__init__(horizontal_dist, obstacles, shape)
         self.frame_dist = frame_dist
-        self.obstacles = obstacles
-        self.limits_x = limits_x
-        self.limits_y = limits_y
-        self.canti_dist = canti_dist
         self.horizontal_dist = horizontal_dist
         self.vertical_dist = vertical_dist
-        self.frames = []
-        self.props = []
-        self.cantilevers = []
+
+    def is_valid_position(self, x, y):
+        return self.shape.intersects(x, y) and not self.is_inside_obstacle(x, y) and not self.is_near_another_prop(x, y)
 
     def generate_props(self):
         """Fill the props list with the props generated. 
@@ -47,28 +43,6 @@ class Fast:
                     visited.add((new_x + self.frame_dist, new_y))
                     self.frames.append((new_x, new_y, new_x + self.frame_dist, new_y))
 
-    def place_final_prop(self):
-        """If there is a gap after the last frame in any direction.
-        Fill the gap with a prop in the midpoint till the edge."""
-        # get the max x and y values from the props
-        max_x = max(self.props, key=lambda x: x[0])[0]
-        max_y = max(self.props, key=lambda x: x[1])[1]
-
-        min_x = min(self.props, key=lambda x: x[0])[0]
-        min_y = min(self.props, key=lambda x: x[1])[1]
-
-        # loop over all props at the max or min values
-        for x, y in self.props.copy():
-            if x == max_x:
-                self.props.append((max_x + (self.limits_x[1] - max_x) // 2, y))
-            if x == min_x:
-                self.props.append((min_x - (min_x - self.limits_x[0]) // 2, y))
-            if y == max_y:
-                self.props.append((x, max_y + (self.limits_y[1] - max_y) // 2))
-            if y == min_y:
-                self.props.append((x, min_y - (min_y - self.limits_y[0]) // 2))
-
-
     def is_inside_obstacle(self, x, y):
         for obs in self.obstacles:
             if (obs[0] < x < obs[2] and obs[1] < y < obs[3]) \
@@ -100,33 +74,20 @@ class Fast:
                 return True      
         return False
     
-    def generate_cantilevers(self):
-        ...
-
-    def plot(self):
-        plt.figure(figsize=(5, 5))
-        for obs in self.obstacles:
-            plt.gca().add_patch(plt.Rectangle((obs[0], obs[1]), obs[2] - obs[0], obs[3] - obs[1], color='black'))
-        for x, y in self.props:
-            plt.plot(x, y, 'bo')
-        for x, y in self.cantilevers:
-            plt.plot(x, y, 'ro')
-
-        plt.xlim(self.limits_x)
-        plt.ylim(self.limits_y)
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.show()
 
 def main():
-    start_point = (0, 0)
     frame_dist = 2.5
     horizontal_dist = 0.15
     vertical_dist = 1.8
-    obstacles = [(3, 3, 4, 4)]
-    limits_x = [0, 10]
-    limits_y = [0, 10]
-    canti_dist = 0.3
-    fast = Fast(start_point, frame_dist, horizontal_dist, vertical_dist, obstacles, limits_x, limits_y, canti_dist)
+    obstacles = [Obstacle(0, 0), Obstacle(2, 2), Obstacle(7, 7)]
+    villa = Villa(
+        Rectangle([0, 4.75], [0, 16.3]),
+        Rectangle([4.75, 9.8], [1.91, 16.3]),
+        Rectangle([9.8, 15.45], [2.76, 16.3]),
+        Rectangle([15.45, 23.4], [10.8, 16.3]),
+        Triangle([15.45, 2.76], [15.4, 10.8], [23.4, 10.8])
+    )
+    fast = Fast(frame_dist, horizontal_dist, vertical_dist, obstacles, villa)
     fast.generate_props()
     fast.place_final_prop()
     fast.plot()

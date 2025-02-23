@@ -1,29 +1,29 @@
-import matplotlib.pyplot as plt
+from obstacle_trad import *
 
-class Frames:
-    def __init__(self, start_point, frame_dist, horizontal_dist, vertical_dist, obstacles, limits_x, limits_y, canti_dist):
-        self.start_point = start_point
+class Frames(TraditionalProps):
+    def __init__(self, frame_dist, min_dist, vertical_dist, obstacles, shape, canti_dist=0):
+        super().__init__(min_dist, obstacles, shape, canti_dist)
         self.frame_dist = frame_dist
-        self.obstacles = obstacles
-        self.limits_x = limits_x
-        self.limits_y = limits_y
+        self.scale = 1
+        self.min_dist = min_dist
         self.canti_dist = canti_dist
-        self.horizontal_dist = horizontal_dist
-        self.vertical_dist = vertical_dist
-        self.props = []
-        self.cantilevers = []
+        self.props = set()
+        self.cantilevers = set()
 
+    def is_valid_position(self, x, y):
+        return self.shape.intersects(x, y) and not self.is_inside_obstacle(x, y) and not self.is_near_another_prop(x, y)
+    
     def generate_props(self):
         """Fill the props list with the props generated. 
         Distance in horizontal and vertical are defined by the user.
         Frames dist is the distance between two props in the frame"""
-        x, y = self.start_point
+        x, y = (self.start_point)
         while not self.is_valid_position(x, y) or not self.is_valid_position(x + self.frame_dist, y):
             x += 0.1
         x, y = round(x, 2), round(y, 2)
-        self.props = [(x, y), (x + self.frame_dist, y)]
-        directions = [(self.horizontal_dist, 0), (-self.horizontal_dist, 0), (0, self.vertical_dist), (0, -self.vertical_dist)]
-        queue = [(x, y)]
+        self.props = {(x, y), (x + self.frame_dist, y)}
+        directions = [(self.min_dist, 0), (-self.min_dist, 0), (0, self.min_dist), (0, -self.min_dist)]
+        queue = [(x, y), (x + self.frame_dist, y)]
         visited = set(queue)
 
         while queue:
@@ -32,29 +32,16 @@ class Frames:
                 new_x, new_y = current_x + dx, current_y + dy
                 if (new_x, new_y) not in visited and self.is_valid_position(new_x, new_y) and self.is_valid_position(new_x + self.frame_dist, new_y):
                     new_x, new_y = round(new_x, 2), round(new_y, 2)
-                    self.props.append((new_x, new_y))
-                    self.props.append((new_x + self.frame_dist, new_y))
+                    self.props.add((new_x, new_y))
+                    self.props.add((new_x + self.frame_dist, new_y))
                     queue.append((new_x, new_y))
                     queue.append((new_x + self.frame_dist, new_y))
                     visited.add((new_x, new_y))
                     visited.add((new_x + self.frame_dist, new_y))
 
-    def is_inside_obstacle(self, x, y):
-        for obs in self.obstacles:
-            if obs[0] < x < obs[2] and obs[1] < y < obs[3]:
-                return True
-        return False
-
-    def is_valid_position(self, x, y):
-        if (x < self.limits_x[0] or x > self.limits_x[1] or
-            y < self.limits_y[0] or y > self.limits_y[1] or
-            self.is_inside_obstacle(x, y)) or self.is_near_another_prop(x, y):
-            return False
-        return True
-
     def is_near_another_prop(self, x, y):
-        for prop in self.props:
-            if abs(prop[0] - x) < self.horizontal_dist and abs(prop[1] - y) < self.vertical_dist:
+        for prop in self.props - {(x, y)}:
+            if abs(prop[0] - x) < self.min_dist and abs(prop[1] - y) < self.min_dist:
                 return True
         return False
     
@@ -70,53 +57,43 @@ class Frames:
 
         # loop over all props at the max or min values
         for x, y in self.props.copy():
-            if x == max_x and (dist := self.limits_x[1] - max_x):
+            if x == max_x and (dist := self.shape.nearest_bdist(max_x, y)):
                 if dist >= self.canti_dist:
-                    self.cantilevers.append((max_x + self.canti_dist, y))
+                    self.cantilevers.add((max_x + self.canti_dist, y))
                 if dist > self.canti_dist:
-                    self.props.append((self.limits_x[1], y))
-            if x == min_x and (dist := min_x - self.limits_x[0]):
+                    self.props.add((max_x + dist, y))
+            if x == min_x and (dist := self.shape.nearest_bdist(min_x, y)):
                 if dist >= self.canti_dist:
-                    self.cantilevers.append((min_x - self.canti_dist, y))
+                    self.cantilevers.add((min_x - self.canti_dist, y))
                 if dist > self.canti_dist:
-                    self.props.append((self.limits_x[0], y))
+                    self.props.add((min_x + dist, y))
             
-            if y == max_y and (dist := self.limits_y[1] - max_y):
+            if y == max_y and (dist := self.shape.nearest_bdist(x, max_y)):
                 if dist >= self.canti_dist:
-                    self.cantilevers.append((x, max_y + self.canti_dist))
+                    self.cantilevers.add((x, max_y + self.canti_dist))
                 if dist > self.canti_dist:
-                    self.props.append((x, self.limits_y[1]))
+                    self.props.add((x, max_y + dist))
             
-            if y == min_y and (dist := min_y - self.limits_y[0]):
+            if y == min_y and (dist := self.shape.nearest_bdist(x, min_y)):
                 if dist >= self.canti_dist:
-                    self.cantilevers.append((x, min_y - self.canti_dist))
+                    self.cantilevers.add((x, min_y - self.canti_dist))
                 if dist > self.canti_dist:
-                    self.props.append((x, self.limits_y[0]))
-
-    def plot(self):
-        plt.figure(figsize=(5, 5))
-        for obs in self.obstacles:
-            plt.gca().add_patch(plt.Rectangle((obs[0], obs[1]), obs[2] - obs[0], obs[3] - obs[1], color='black'))
-        for x, y in self.props:
-            plt.plot(x, y, 'bo')
-        for x, y in self.cantilevers:
-            plt.plot(x, y, 'ro')
-
-        plt.xlim(self.limits_x)
-        plt.ylim(self.limits_y)
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.show()
+                    self.props.add((x, min_y + dist))
 
 def main():
-    start_point = (0, 0)
     frame_dist = 1.2
-    horizontal_dist = 1
+    min_dist = 1
     vertical_dist = 1
-    obstacles = [(3, 3, 4, 4)]
-    limits_x = [0, 5]
-    limits_y = [0, 5]
+    obstacles = [Obstacle(0, 0), Obstacle(2, 2), Obstacle(7, 7)]
+    villa = Villa(
+        Rectangle([0, 4.75], [0, 16.3]),
+        Rectangle([4.75, 9.8], [1.91, 16.3]),
+        Rectangle([9.8, 15.45], [2.76, 16.3]),
+        Rectangle([15.45, 23.4], [10.8, 16.3]),
+        Triangle([15.45, 2.76], [15.4, 10.8], [23.4, 10.8])
+    )
     canti_dist = 0.4
-    frames = Frames(start_point, frame_dist, horizontal_dist, vertical_dist, obstacles, limits_x, limits_y, canti_dist)
+    frames = Frames(frame_dist, min_dist, vertical_dist, obstacles, villa, canti_dist)
     frames.generate_props()
     frames.generate_cantilevers()
     frames.plot()
