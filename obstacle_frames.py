@@ -6,6 +6,7 @@ class Frames(TraditionalProps):
         self.frame_dist = frame_dist
         self.scale = 1
         self.min_dist = min_dist
+        self.vertical_dist = vertical_dist
         self.canti_dist = canti_dist
         self.props = set()
         self.cantilevers = set()
