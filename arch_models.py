@@ -105,5 +105,5 @@ class Obstacle(Rectangle):
         """x -- x of lowermost left point, y -- y of lowermost left point"""
         super().__init__((x, x + 0.3), (y, y + 0.45))
 
-    def intersects(self, other: LineString):
+    def intersects_frame(self, other: LineString):
         return self.polygon.intersects(other)
