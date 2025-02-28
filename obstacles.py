@@ -70,7 +70,7 @@ class Traditional:
             plot_points(canti_points, ax=ax, marker='o', color='green', markersize=4, alpha=0.8)
 
         # Improve plot aesthetics
-        ax.set_xlim([-1, 24])
+        ax.set_xlim([-1, 28])
         ax.set_ylim([-1, 20])
         ax.set_xlabel("X", fontsize=12)
         ax.set_ylabel("Y", fontsize=12)
@@ -85,10 +85,15 @@ class Traditional:
         ax.legend(handles=legend_patches, loc="upper right", fontsize=10)
         plt.savefig(f"out/Plot_{sys}_{name}.jpg", format="jpg", dpi=300, bbox_inches="tight")
     
-    def run(self, sys="", name=""):
+    def run(self, name=""):
+        os.makedirs("out", exist_ok=True)
         self.generate_props()
         self.generate_cantilevers()
-        self.plot(sys, name)
+        self.plot(self.__class__.__name__, name)
+
+class Props(Traditional):
+    def __init__(self, obstacles, shape, min_dist=1.5, canti_dist=0.6):
+        super().__init__(obstacles, shape, min_dist, canti_dist)
 
 class Frames(Traditional):
     def __init__(self, obstacles, shape, frame_dist=1.2, min_dist=1, vertical_dist=1, canti_dist=0.4):
@@ -105,30 +110,43 @@ class Frames(Traditional):
         return self.shape.intersects(x, y) and not self.is_inside_obstacle(x, y) and not self.is_near_another_prop(x, y)
     
     def generate_props(self):
-        """Fill the props list with the props generated. 
-        Distance in horizontal and vertical are defined by the user.
-        Frames dist is the distance between two props in the frame"""
-        x, y = (self.start_point)
-        while not self.is_valid_position(x, y) or not self.is_valid_position(x + self.frame_dist, y):
-            x += 0.1
-        x, y = round(x, 2), round(y, 2)
-        self.props = {(x, y), (x + self.frame_dist, y)}
-        directions = [(self.min_dist, 0), (-self.min_dist, 0), (0, self.min_dist), (0, -self.min_dist)]
-        queue = [(x, y), (x + self.frame_dist, y)]
-        visited = set(queue)
+        """
+        Fill the props list by scanning over a grid of candidate points using a small step.
+        The grid is defined using the bounds of the shape and a step size (here 0.05).
+        For each candidate point (x, y), if both (x, y) and (x + frame_dist, y) are valid and 
+        the point is not inside an obstacle, they are added as props and the corresponding frame is stored.
+        """
+        step = 0.05
 
-        while queue:
-            current_x, current_y = queue.pop(0)
-            for dx, dy in directions:
-                new_x, new_y = current_x + dx, current_y + dy
-                if (new_x, new_y) not in visited and self.is_valid_position(new_x, new_y) and self.is_valid_position(new_x + self.frame_dist, new_y):
-                    new_x, new_y = round(new_x, 2), round(new_y, 2)
-                    self.props.add((new_x, new_y))
-                    self.props.add((new_x + self.frame_dist, new_y))
-                    queue.append((new_x, new_y))
-                    queue.append((new_x + self.frame_dist, new_y))
-                    visited.add((new_x, new_y))
-                    visited.add((new_x + self.frame_dist, new_y))
+        # Get the bounds of the shape (assuming self.shape has a 'bounds' attribute: (minx, miny, maxx, maxy))
+        minx, miny, maxx, maxy = 0, 0, 50, 50
+        # Adjust maxx so that (x + frame_dist) stays within bounds
+        maxx -= self.frame_dist
+
+        self.props = set()
+        self.frames = []
+
+        # Create grid values for x and y
+        x_values = np.arange(minx, maxx, step)
+        y_values = np.arange(miny, maxy, self.vertical_dist)
+
+        # Loop over all candidate points
+        for x in x_values:
+            for y in y_values:
+                # Round the coordinates to 3 decimal places
+                x_r, y_r = round(x, 3), round(y, 3)
+                # Check if the candidate and its right neighbor (for the frame) are valid,
+                # and ensure the candidate is not inside an obstacle.
+                if (
+                    self.is_valid_position(x_r, y_r)
+                    and self.is_valid_position(x_r + self.frame_dist, y_r)
+                    and not self.is_inside_obstacle(x_r, y_r)
+                ):
+                    # Add the candidate point and its neighbor to the props set
+                    self.props.add((x_r, y_r))
+                    self.props.add((round(x_r + self.frame_dist, 3), y_r))
+                    # Append the corresponding frame tuple
+                    self.frames.append((x_r, y_r, round(x_r + self.frame_dist, 3), y_r))
 
     def is_near_another_prop(self, x, y):
         for prop in self.props - {(x, y)}:
@@ -176,42 +194,51 @@ class Fast(Frames):
         super().__init__(obstacles, shape, frame_dist, horizontal_dist, vertical_dist)
         self.horizontal_dist = horizontal_dist
         self.frames = []
+        self.scale = 1
 
     def is_valid_position(self, x, y):
         return self.shape.intersects(x, y) and not self.is_inside_obstacle(x, y) and not self.is_near_another_prop(x, y)
 
     def generate_props(self):
-        """Fill the props list with the props generated. 
-        Distance in horizontal and vertical are defined by the user.
-        Frame dist is the distance between two props in the frame."""
-        x, y = self.start_point
-        while not self.is_valid_position(x, y) or not self.is_valid_position(x + self.frame_dist, y):
-            x += 0.05
-        x, y = round(x, 3), round(y, 3)
-        self.props = {(x, y), (x + self.frame_dist, y)}
-        self.frames.append((x, y, x + self.frame_dist, y))
-        directions = [(self.horizontal_dist, 0), (-self.horizontal_dist, 0), (0, self.vertical_dist), (0, -self.vertical_dist)]
-        queue = [(x, y), (x + self.frame_dist, y)]
-        visited = set(queue)
+        """
+        Fill the props list by scanning over a grid of candidate points using a small step.
+        The grid is defined using the bounds of the shape and a step size (here 0.05).
+        For each candidate point (x, y), if both (x, y) and (x + frame_dist, y) are valid and 
+        the point is not inside an obstacle, they are added as props and the corresponding frame is stored.
+        """
+        step = 0.05
 
-        while queue:
-            current_x, current_y = queue.pop(0)
-            for dx, dy in directions:
-                new_x, new_y = current_x + dx, current_y + dy
+        # Get the bounds of the shape (assuming self.shape has a 'bounds' attribute: (minx, miny, maxx, maxy))
+        minx, miny, maxx, maxy = 0, 0, 50, 50
+        # Adjust maxx so that (x + frame_dist) stays within bounds
+        maxx -= self.frame_dist
+
+        self.props = set()
+        self.frames = []
+
+        # Create grid values for x and y
+        x_values = np.arange(minx, maxx, step)
+        y_values = np.arange(miny, maxy, self.vertical_dist)
+
+        # Loop over all candidate points
+        for x in x_values:
+            for y in y_values:
+                # Round the coordinates to 3 decimal places
+                x_r, y_r = round(x, 3), round(y, 3)
+                # Check if the candidate and its right neighbor (for the frame) are valid,
+                # and ensure the candidate is not inside an obstacle.
                 if (
-                    (new_x, new_y) not in visited 
-                    and self.is_valid_position(new_x, new_y) 
-                    and self.is_valid_position(new_x + self.frame_dist, new_y)
-                    and not self.is_inside_obstacle(new_x, new_y)
+                    self.is_valid_position(x_r, y_r)
+                    and self.is_valid_position(x_r + self.frame_dist, y_r)
+                    and not self.is_inside_obstacle(x_r, y_r)
                 ):
-                    new_x, new_y = round(new_x, 3), round(new_y, 3)
-                    self.props.add((new_x, new_y))
-                    self.props.add((new_x + self.frame_dist, new_y))
-                    queue.append((new_x, new_y))
-                    queue.append((new_x + self.frame_dist, new_y))
-                    visited.add((new_x, new_y))
-                    visited.add((new_x + self.frame_dist, new_y))
-                    self.frames.append((new_x, new_y, new_x + self.frame_dist, new_y))
+                    # Add the candidate point and its neighbor to the props set
+                    self.props.add((x_r, y_r))
+                    self.props.add((round(x_r + self.frame_dist, 3), y_r))
+                    # Append the corresponding frame tuple
+                    self.frames.append((x_r, y_r, round(x_r + self.frame_dist, 3), y_r))
+
+
 
     def is_inside_obstacle(self, x, y):
         return any(obs.intersects_frame(LineString([[x, y], [x + self.frame_dist, y]])) for obs in self.obstacles)
@@ -263,10 +290,11 @@ class Fast(Frames):
                 dist = self.shape.nearest_bdist(x, min_y)
                 self.props.add((x, min_y + dist // 2))
 
-    def run(self, sys="", name=""):
+    def run(self, name=""):
+        os.makedirs("out", exist_ok=True)
         self.generate_props()
         self.place_final_prop()
-        self.plot(sys, name)
+        self.plot(self.__class__.__name__, name)
 
 class East(Fast):
     def __init__(self, obstacles, shape, frame_dist=2.4, horizontal_dist=0.15, vertical_dist=1.8):
@@ -281,7 +309,6 @@ def main():
         Rectangle([15.45, 23.4], [10.8, 16.3]),
         Triangle([15.45, 2.76], [15.4, 10.8], [23.4, 10.8])
     )
-    os.makedirs("out", exist_ok=True)
     for cls in [Traditional, Frames, Fast, East]:
         cls(obstacles, villa).run(cls.__name__, "test")
 
