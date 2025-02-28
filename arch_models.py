@@ -20,7 +20,12 @@ class Rectangle:
     
     def nearest_bdist(self, x, y):
         """Get the distance to the nearest boundary."""
-        return self.polygon.boundary.distance(Point(x, y))
+        boundary = self.polygon.boundary
+        nearest_point = boundary.interpolate(boundary.project(Point(x, y)))
+        dist_x, dist_y = nearest_point.x - x, nearest_point.y - y
+        if abs(dist_x) < abs(dist_y):
+            return dist_x
+        return dist_y
 
 class L_shape(Rectangle):
     def __init__(self, rectangle1, rectangle2):
@@ -34,7 +39,10 @@ class L_shape(Rectangle):
         return self.rectangle1.limited(x, y, dx, dy, canti_dist) or self.rectangle2.limited(x, y, dx, dy, canti_dist)
     
     def nearest_bdist(self, x, y):
-        return min(self.rectangle1.nearest_bdist(x, y), self.rectangle2.nearest_bdist(x, y))
+        d1, d2 = self.rectangle1.nearest_bdist(x, y), self.rectangle2.nearest_bdist(x, y)
+        if abs(d1) < abs(d2):
+            return d1
+        return d2
     
 class T_shape(L_shape):
     pass
@@ -56,7 +64,7 @@ class Circle:
 
 class Torus:
     def __init__(self, r1, r2):
-        center = r1 * sqrt(2), r1 * sqrt(2)
+        center = r1, r1
         self.circle1 = Circle(center[0], center[1], r1)
         self.circle2 = Circle(center[0], center[1], r2)
     
@@ -105,5 +113,8 @@ class Obstacle(Rectangle):
         """x -- x of lowermost left point, y -- y of lowermost left point"""
         super().__init__((x, x + 0.3), (y, y + 0.45))
 
-    def intersects_frame(self, other: LineString):
-        return self.polygon.intersects(other)
+    def intersects_frame(self, x1, x2, y):
+        """Check if the horizontal line segment from (x1, y) to (x2, y) intersects the rectangle."""
+        return self.polygon.intersects(Point(x1, y)) \
+    or self.polygon.intersects(Point(x2, y)) \
+    or x1 < self.limits_x[0] and x2 > self.limits_x[1] and y > self.limits_y[0] and y < self.limits_y[1]

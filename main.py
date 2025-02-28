@@ -31,7 +31,7 @@ def load_shapes():
                         shapes[shape[:-4]][row[0]] = L_shape(rect1, rect2)
                 elif shape.startswith("Circular"):
                     for row in reader:
-                        shapes[shape[:-4]][row[0]] = Torus(float(row[1]), float(row[2]))
+                        shapes[shape[:-4]][row[0]] = Circle(float(row[1]), float(row[1]), float(row[1]))
                 elif shape.startswith("Villa"):
                     for row in reader:
                         rect1 = Rectangle([float(row[1]), float(row[3])], [float(row[2]), float(row[4])])
@@ -45,14 +45,32 @@ def load_shapes():
 def main():
     buildings = os.listdir("data/obstacles")
     shapes = load_shapes()
+    out = shapes.copy()
     for building in buildings:
         if building.endswith(".csv"):
             obstacles = load_obstacles(building)
             model, size = building[:-4].split()
             shape = shapes[model][size]
+            out[model][size] = {}
             for cls in [Traditional, Props, Frames, Fast, East]:
-                cls(obstacles, shape).run(building[:-4])
-            break
+                props, canti, frames, name = cls(obstacles, shape).run(building[:-4])
+                out[model][size][name] = (props, canti, frames)
+
+    with open("out.csv", "w") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=["Model", "Size", "Class", "Props", "Cantilevers", "Frames"])
+        writer.writeheader()
+        for model in out:
+            for size in out[model]:
+                for cls in out[model][size]:
+                    writer.writerow({
+                        "Model": model,
+                        "Size": size,
+                        "Class": cls,
+                        "Props": out[model][size][cls][0],
+                        "Cantilevers": out[model][size][cls][1],
+                        "Frames": out[model][size][cls][2],
+                    })    
+
 
 if __name__ == "__main__":
     main()
